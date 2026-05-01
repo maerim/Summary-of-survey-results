@@ -1,1 +1,351 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard สรุปผลสำรวจ สกร.แม่ริม 2569</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js DataLabels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <!-- PapaParse (For parsing CSV) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
+    <style>
+        body { font-family: 'Prompt', sans-serif; background-color: #f1f5f9; color: #1e293b; }
+        .dashboard-grid { display: grid; gap: 1.25rem; }
+        .card { background: #ffffff; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); padding: 1.5rem; border: 1px solid #e2e8f0; }
+        .card-title { font-size: 1.05rem; font-weight: 600; color: #0f172a; margin-bottom: 1.25rem; display: flex; align-items: flex-start; gap: 0.75rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.75rem; line-height: 1.5; }
+        .stat-badge { padding: 0.25rem 0.75rem; border-radius: 1rem; font-weight: 600; font-size: 0.85rem; white-space: nowrap; }
+        
+        /* Custom Scrollbar for lists */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="p-4 md:p-6 lg:p-8">
+
+    <!-- UPLOAD SECTION (เพิ่มระบบดึงข้อมูลตรงจากไฟล์) -->
+    <div class="mb-6 p-6 bg-white rounded-xl shadow border-2 border-dashed border-blue-400 text-center relative overflow-hidden">
+        <div class="absolute -right-10 -top-10 text-blue-50 opacity-50"><i class="fa-solid fa-file-csv text-9xl"></i></div>
+        <h2 class="text-xl font-bold text-blue-800 mb-2 relative z-10"><i class="fa-solid fa-upload"></i> อัปโหลดไฟล์ข้อมูลจริง (CSV) เพื่อแสดงผล</h2>
+        <p class="text-sm text-slate-500 mb-4 relative z-10">กรุณาเลือกไฟล์ <strong>"แบบสำรวจความต้องการการจัดการเรียนรู้ ประจำปีงบประมาณ 2569.xlsx - รวม.csv"</strong> ของคุณ <br>เพื่อดึงตัวเลขการตอบกลับจริงมาสร้าง Dashboard โดยอัตโนมัติ</p>
+        <input type="file" id="csvFileInput" accept=".csv" class="relative z-10 block mx-auto text-sm text-slate-500 file:mr-4 file:py-2 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer shadow-md transition" />
+    </div>
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 bg-blue-700 text-white p-6 rounded-xl shadow-lg">
+        <div>
+            <h1 class="text-2xl font-bold mb-2">รายงานแบบสำรวจความต้องการการจัดการเรียนรู้ ประจำปีงบประมาณ 2569</h1>
+            <p class="text-blue-200">ศูนย์ส่งเสริมการเรียนรู้ระดับอำเภอแม่ริม จ.เชียงใหม่ | วิเคราะห์จากฐานข้อมูลจริง</p>
+        </div>
+        <div class="mt-4 md:mt-0 text-center bg-blue-800 px-8 py-3 rounded-lg shrink-0 border border-blue-600 shadow-inner">
+            <p class="text-sm text-blue-200">จำนวนผู้ตอบแบบสำรวจทั้งหมด</p>
+            <p class="text-4xl font-bold mt-1"><span id="totalUsers">0</span> <span class="text-lg font-normal">คน</span></p>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="dashboard-grid grid-cols-1 md:grid-cols-12" id="dashboardContent">
+
+        <!-- ROW 1: ข้อมูลประชากรศาสตร์ & การรู้หนังสือ -->
+        <div class="card md:col-span-8 flex flex-col">
+            <div class="card-title text-indigo-700"><i class="fa-solid fa-users mt-1"></i> ส่วนที่ 1 ข้อมูลส่วนตัว (แยกตามเพศและช่วงอายุ)</div>
+            <div class="flex-grow relative h-64"><canvas id="demoChart"></canvas></div>
+        </div>
+
+        <div class="card md:col-span-4 bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100">
+            <div class="card-title text-emerald-700"><i class="fa-solid fa-language mt-1"></i> ส่วนที่ 2.2.4 ส่งเสริมการเรียนรู้หนังสือไทย</div>
+            <div class="flex flex-col justify-center h-full gap-4">
+                <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-emerald-100">
+                    <div class="flex items-center gap-3"><i class="fa-solid fa-book-open text-emerald-500 text-xl"></i> <span class="font-medium text-sm text-slate-700">รู้หนังสือ / อ่านออกเขียนได้</span></div>
+                    <div class="text-2xl font-bold text-emerald-600" id="litYes">0</div>
+                </div>
+                <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-amber-100">
+                    <div class="flex items-center gap-3"><i class="fa-solid fa-eraser text-amber-500 text-xl"></i> <span class="font-medium text-sm text-slate-700">ลืมหนังสือ</span></div>
+                    <div class="text-2xl font-bold text-amber-600" id="litForget">0</div>
+                </div>
+                <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-rose-100">
+                    <div class="flex items-center gap-3"><i class="fa-solid fa-circle-exclamation text-rose-500 text-xl"></i> <span class="font-medium text-sm text-slate-700">ไม่รู้หนังสือ</span></div>
+                    <div class="text-2xl font-bold text-rose-600" id="litNo">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 2: การศึกษาขั้นพื้นฐาน (2.1) & เรียนรู้ตลอดชีวิต (2.3) -->
+        <div class="card md:col-span-6 bg-slate-50">
+            <div class="card-title text-blue-700"><i class="fa-solid fa-graduation-cap mt-1"></i> ส่วนที่ 2.1 การเรียนรู้เพื่อคุณวุฒิระดับการศึกษาขั้นพื้นฐาน</div>
+            <div class="mb-4 bg-blue-100 p-3 rounded-lg border border-blue-200">
+                <span class="text-sm text-blue-800 font-medium">ผู้ที่มีความประสงค์เรียนต่อ: <strong id="eduWant" class="text-blue-600 text-xl ml-1">0</strong> คน</span>
+            </div>
+            <ul id="eduList" class="mt-4 space-y-2 h-40 overflow-y-auto custom-scroll text-sm pr-2">
+                <li class="text-gray-400 text-center py-4">รอการอัปโหลดข้อมูล...</li>
+            </ul>
+        </div>
+
+        <div class="card md:col-span-6 bg-slate-50">
+            <div class="card-title text-purple-700"><i class="fa-solid fa-infinity mt-1"></i> ส่วนที่ 2.3 การเรียนรู้ตลอดชีวิต ที่ต้องการเรียนรู้ด้วยตนเอง</div>
+            <div class="flex gap-4 mb-5">
+                <div class="flex-1 bg-white p-4 rounded-lg border border-purple-200 flex justify-between items-center shadow-sm">
+                    <span class="text-sm font-semibold text-slate-700"><i class="fa-solid fa-globe text-purple-500 mr-2"></i> เรียนแบบออนไลน์</span>
+                    <span class="text-2xl font-bold text-purple-700" id="onlineCount">0</span>
+                </div>
+                <div class="flex-1 bg-white p-4 rounded-lg border border-gray-200 flex justify-between items-center shadow-sm">
+                    <span class="text-sm font-semibold text-slate-700"><i class="fa-solid fa-book text-gray-500 mr-2"></i> เรียนแบบออฟไลน์</span>
+                    <span class="text-2xl font-bold text-gray-700" id="offlineCount">0</span>
+                </div>
+            </div>
+            <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                <p class="text-sm font-semibold text-purple-800 mb-3">เรื่องที่ต้องการศึกษาเรียนรู้ด้วยตนเอง</p>
+                <ul id="subject23List" class="flex flex-col gap-2 h-20 overflow-y-auto custom-scroll pr-2 text-sm">
+                    <li class="text-gray-400">รอการอัปโหลดข้อมูล...</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ROW 3: การเรียนรู้เพื่อพัฒนาตนเอง (2.2) 3 เสาหลัก -->
+        <div class="card md:col-span-12">
+            <div class="card-title text-amber-600"><i class="fa-solid fa-seedling mt-1"></i> ส่วนที่ 2.2 การเรียนรู้เพื่อการพัฒนาตนเอง (จำแนกตามความต้องการรายวิชา)</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-5">
+                
+                <!-- 2.2.1 อาชีพ -->
+                <div class="border border-amber-200 rounded-lg p-5 bg-amber-50/50 relative shadow-sm hover:shadow-md transition">
+                    <div class="absolute -top-4 left-4 bg-amber-500 text-white text-sm font-bold px-4 py-1.5 rounded-md shadow">2.2.1 การประกอบอาชีพและการพัฒนาอาชีพ</div>
+                    <ul id="careerList" class="mt-4 space-y-3 text-sm h-72 overflow-y-auto custom-scroll pr-3 text-slate-700">
+                        <li class="text-gray-400 mt-4 text-center">รอการอัปโหลดข้อมูล...</li>
+                    </ul>
+                </div>
+
+                <!-- 2.2.2 ทักษะชีวิต -->
+                <div class="border border-rose-200 rounded-lg p-5 bg-rose-50/50 relative shadow-sm hover:shadow-md transition">
+                    <div class="absolute -top-4 left-4 bg-rose-500 text-white text-sm font-bold px-4 py-1.5 rounded-md shadow">2.2.2 การพัฒนาทักษะชีวิต</div>
+                    <ul id="lifeList" class="mt-4 space-y-3 text-sm h-72 overflow-y-auto custom-scroll pr-3 text-slate-700">
+                        <li class="text-gray-400 mt-4 text-center">รอการอัปโหลดข้อมูล...</li>
+                    </ul>
+                </div>
+
+                <!-- 2.2.3 สังคมชุมชน -->
+                <div class="border border-teal-200 rounded-lg p-5 bg-teal-50/50 relative shadow-sm hover:shadow-md transition">
+                    <div class="absolute -top-4 left-4 bg-teal-500 text-white text-sm font-bold px-4 py-1.5 rounded-md shadow">2.2.3 การพัฒนาสังคมและชุมชน</div>
+                    <ul id="societyList" class="mt-4 space-y-3 text-sm h-72 overflow-y-auto custom-scroll pr-3 text-slate-700">
+                        <li class="text-gray-400 mt-4 text-center">รอการอัปโหลดข้อมูล...</li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ROW 4: จุดมุ่งหมาย (3), รูปแบบ (4), สถานที่ (5), เวลา -->
+        <div class="card md:col-span-4">
+            <div class="card-title text-slate-700"><i class="fa-solid fa-bullseye mt-1"></i> ส่วนที่ 3 จุดมุ่งหมายในการเรียนรู้</div>
+            <div class="relative h-56 w-full"><canvas id="purposeChart"></canvas></div>
+        </div>
+
+        <div class="card md:col-span-4">
+            <div class="card-title text-slate-700"><i class="fa-solid fa-chalkboard-user mt-1"></i> ส่วนที่ 4 รูปแบบ & ส่วนที่ 5 สถานที่เรียนรู้</div>
+            <div class="relative h-56 w-full"><canvas id="formatLocChart"></canvas></div>
+        </div>
+
+        <div class="card md:col-span-4">
+            <div class="card-title text-slate-700"><i class="fa-solid fa-calendar-check mt-1"></i> วันเวลาที่สามารถมาเรียนได้</div>
+            <div class="relative h-56 w-full"><canvas id="timeChart"></canvas></div>
+        </div>
+
+    </div>
+
+    <script>
+        Chart.register(ChartDataLabels);
+        Chart.defaults.font.family = "'Prompt', sans-serif";
+        window.myCharts = {};
+
+        // ระบบประมวลผลไฟล์ CSV
+        document.getElementById('csvFileInput').addEventListener('change', function(e) {
+            let file = e.target.files[0];
+            if (!file) return;
+
+            Papa.parse(file, {
+                skipEmptyLines: true,
+                complete: function(results) {
+                    processCSVData(results.data);
+                },
+                error: function(err) {
+                    alert('เกิดข้อผิดพลาดในการอ่านไฟล์: ' + err.message);
+                }
+            });
+        });
+
+        function processCSVData(data) {
+            // นับจำนวนคนทั้งหมดที่คอลัมน์ A (ลำดับที่) เป็นตัวเลข
+            let validRows = data.filter(row => row.length > 20 && !isNaN(parseInt(row[0])));
+            let total = validRows.length;
+            document.getElementById('totalUsers').innerText = total;
+
+            let men = { '15-25':0, '26-40':0, '41-59':0, '60+':0 };
+            let women = { '15-25':0, '26-40':0, '41-59':0, '60+':0 };
+            let lit = { 'รู้หนังสือ':0, 'ลืมหนังสือ':0, 'ไม่รู้หนังสือ':0 };
+            let eduWant = 0, onlineCnt = 0, offlineCnt = 0;
+            let eduDetails = {}, career = {}, life = {}, society = {}, subj23 = {};
+            let purpose = {}, formatLoc = {}, time = {};
+
+            validRows.forEach(row => {
+                // 1. ประชากร (คอลัมน์ 2, 4)
+                let gender = (row[2] || '').trim();
+                let age = parseInt((row[4] || '').trim());
+                if(!isNaN(age)) {
+                    let group = age <= 25 ? '15-25' : (age <= 40 ? '26-40' : (age <= 59 ? '41-59' : '60+'));
+                    if(gender.includes('ชาย')) men[group]++;
+                    else if(gender.includes('หญิง')) women[group]++;
+                }
+
+                // 2. รู้หนังสือ (คอลัมน์ 15)
+                let literacy = (row[15] || '').trim();
+                if(literacy.includes('ไม่รู้หนังสือ')) lit['ไม่รู้หนังสือ']++;
+                else if(literacy.includes('ลืมหนังสือ')) lit['ลืมหนังสือ']++;
+                else if(literacy.includes('รู้หนังสือ')) lit['รู้หนังสือ']++;
+
+                // 3. การศึกษาขั้นพื้นฐาน 2.1 (คอลัมน์ 10, 11)
+                let e1 = (row[10] || '').trim();
+                let e2 = (row[11] || '').trim();
+                let eduStr = (e1 + " " + e2).trim();
+                if(eduStr && !eduStr.includes('ไม่ประสงค์') && eduStr !== '-') {
+                    eduWant++;
+                    eduDetails[eduStr] = (eduDetails[eduStr] || 0) + 1;
+                }
+
+                // 4. เรียนรู้ตลอดชีวิต 2.3 (คอลัมน์ 16)
+                let lll = (row[16] || '').trim();
+                if(lll && lll !== '-' && !lll.includes('ไม่ต้องการ')) {
+                    if(lll.includes('ออนไลน์')) onlineCnt++;
+                    else offlineCnt++;
+                    
+                    let subStr = lll.replace('แบบออนไลน์', '').replace('แบบออฟไลน์', '').replace('-', '').trim();
+                    if(subStr) subj23[subStr] = (subj23[subStr] || 0) + 1;
+                }
+
+                // Helper ฟังก์ชันนับคำ
+                const addCounts = (val, dict) => {
+                    let v = (val || '').trim();
+                    if(v && v !== '-' && !v.includes('ไม่ต้องการ') && v !== 'ไม่มี') {
+                        // แยกด้วย comma หรือขึ้นบรรทัดใหม่เผื่อผู้ใช้เลือกหลายข้อ
+                        let parts = v.split(/[\n,]/).map(p => p.trim()).filter(p => p && p !== '-');
+                        parts.forEach(p => { dict[p] = (dict[p] || 0) + 1; });
+                    }
+                };
+
+                addCounts(row[12], career);  // 2.2.1
+                addCounts(row[13], life);    // 2.2.2
+                addCounts(row[14], society); // 2.2.3
+                addCounts(row[17], purpose); // 3
+                
+                // รูปแบบและสถานที่ (คอลัมน์ 18, 19)
+                let fStr = (row[18]||'').trim(); if(fStr && fStr!=='-') formatLoc['รูปแบบ: ' + fStr] = (formatLoc['รูปแบบ: ' + fStr] || 0) + 1;
+                let locStr = (row[19]||'').trim(); if(locStr && locStr!=='-') formatLoc['สถานที่: ' + locStr] = (formatLoc['สถานที่: ' + locStr] || 0) + 1;
+
+                addCounts(row[20], time); // เวลา
+            });
+
+            // --- Update UI ---
+            document.getElementById('litYes').innerText = lit['รู้หนังสือ'];
+            document.getElementById('litForget').innerText = lit['ลืมหนังสือ'];
+            document.getElementById('litNo').innerText = lit['ไม่รู้หนังสือ'];
+            document.getElementById('eduWant').innerText = eduWant;
+            document.getElementById('onlineCount').innerText = onlineCnt;
+            document.getElementById('offlineCount').innerText = offlineCnt;
+
+            // --- Render Lists ---
+            const renderList = (dict, id, badgeClass) => {
+                let sorted = Object.entries(dict).sort((a,b)=>b[1]-a[1]);
+                let html = '';
+                sorted.forEach(([k, v]) => {
+                    html += `<li class="flex justify-between items-center border-b border-gray-100 pb-2"><span class="text-slate-700 text-sm pr-2 leading-tight">${k}</span> <span class="stat-badge ${badgeClass}">${v} คน</span></li>`;
+                });
+                document.getElementById(id).innerHTML = html || '<li class="text-gray-400 text-center py-2">ไม่มีผู้ระบุข้อมูลในส่วนนี้</li>';
+            };
+
+            renderList(eduDetails, 'eduList', 'bg-blue-100 text-blue-700');
+            renderList(career, 'careerList', 'bg-amber-100 text-amber-700');
+            renderList(life, 'lifeList', 'bg-rose-100 text-rose-700');
+            renderList(society, 'societyList', 'bg-teal-100 text-teal-700');
+            renderList(subj23, 'subject23List', 'bg-purple-100 text-purple-800');
+
+            // --- Render Charts ---
+            createStackedChart('demoChart', ['15-25 ปี', '26-40 ปี', '41-59 ปี', '60 ปีขึ้นไป'], 
+                [men['15-25'], men['26-40'], men['41-59'], men['60+']], 
+                [women['15-25'], women['26-40'], women['41-59'], women['60+']]
+            );
+
+            let pSorted = Object.entries(purpose).sort((a,b)=>b[1]-a[1]);
+            createDoughnut('purposeChart', pSorted.map(x=>x[0]), pSorted.map(x=>x[1]));
+
+            let flSorted = Object.entries(formatLoc).sort((a,b)=>b[1]-a[1]);
+            createBarChart('formatLocChart', flSorted.map(x=>x[0]), flSorted.map(x=>x[1]), '#0ea5e9', true);
+
+            let tSorted = Object.entries(time).sort((a,b)=>b[1]-a[1]);
+            createBarChart('timeChart', tSorted.map(x=>x[0]), tSorted.map(x=>x[1]), '#8b5cf6', false);
+        }
+
+        // --- Chart Helpers ---
+        function createStackedChart(id, labels, dataMen, dataWomen) {
+            if (window.myCharts[id]) window.myCharts[id].destroy();
+            let ctx = document.getElementById(id).getContext('2d');
+            window.myCharts[id] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'เพศชาย', data: dataMen, backgroundColor: '#3b82f6', borderRadius: 4 },
+                        { label: 'เพศหญิง', data: dataWomen, backgroundColor: '#ec4899', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { stacked: true, grid: {display: false} }, y: { stacked: true } },
+                    plugins: { datalabels: { formatter: (v) => v > 0 ? v : '' }, legend: { position: 'top' } }
+                }
+            });
+        }
+
+        function createDoughnut(id, labels, dataArr) {
+            if (window.myCharts[id]) window.myCharts[id].destroy();
+            let ctx = document.getElementById(id).getContext('2d');
+            window.myCharts[id] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{ data: dataArr, backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#14b8a6'], borderWidth: 2 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: {font: {size: 11}} }, datalabels: { formatter: (v, ctx) => { let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); return (v*100/sum).toFixed(0)+"%"; } } }
+                }
+            });
+        }
+
+        function createBarChart(id, labels, dataArr, color, isHorizontal) {
+            if (window.myCharts[id]) window.myCharts[id].destroy();
+            let ctx = document.getElementById(id).getContext('2d');
+            window.myCharts[id] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{ data: dataArr, backgroundColor: color, borderRadius: 4 }]
+                },
+                options: {
+                    indexAxis: isHorizontal ? 'y' : 'x',
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { display: !isHorizontal, grid:{display:false} }, y: { display: isHorizontal, grid:{display:false} } },
+                    plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: isHorizontal ? 'start' : 'bottom', color: isHorizontal ? '#fff' : '#fff', offset: isHorizontal ? 4 : 0 } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
