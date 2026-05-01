@@ -160,18 +160,24 @@
         </div>
 
         <!-- ROW 4: จุดมุ่งหมาย (3), รูปแบบ (4), สถานที่ (5), เวลา -->
-        <div class="card md:col-span-4">
-            <div class="card-title text-slate-700"><i class="fa-solid fa-bullseye mt-1"></i> ส่วนที่ 3 จุดมุ่งหมายในการเรียนรู้</div>
+        <!-- ปรับจาก col-span-4 เป็น lg:col-span-3 (แบ่งเป็น 4 คอลัมน์) -->
+        <div class="card md:col-span-6 lg:col-span-3">
+            <div class="card-title text-slate-700 text-sm"><i class="fa-solid fa-bullseye mt-1 text-blue-500"></i> ส่วนที่ 3 จุดมุ่งหมาย</div>
             <div class="relative h-56 w-full"><canvas id="purposeChart"></canvas></div>
         </div>
 
-        <div class="card md:col-span-4">
-            <div class="card-title text-slate-700"><i class="fa-solid fa-chalkboard-user mt-1"></i> ส่วนที่ 4 รูปแบบ & ส่วนที่ 5 สถานที่เรียนรู้</div>
-            <div class="relative h-56 w-full"><canvas id="formatLocChart"></canvas></div>
+        <div class="card md:col-span-6 lg:col-span-3">
+            <div class="card-title text-slate-700 text-sm"><i class="fa-solid fa-chalkboard-user mt-1 text-sky-500"></i> ส่วนที่ 4 รูปแบบการเรียนรู้</div>
+            <div class="relative h-56 w-full"><canvas id="formatChart"></canvas></div>
         </div>
 
-        <div class="card md:col-span-4">
-            <div class="card-title text-slate-700"><i class="fa-solid fa-calendar-check mt-1"></i> วันเวลาที่สามารถมาเรียนได้</div>
+        <div class="card md:col-span-6 lg:col-span-3">
+            <div class="card-title text-slate-700 text-sm"><i class="fa-solid fa-map-location-dot mt-1 text-rose-500"></i> ส่วนที่ 5 สถานที่เรียนรู้</div>
+            <div class="relative h-56 w-full"><canvas id="locChart"></canvas></div>
+        </div>
+
+        <div class="card md:col-span-6 lg:col-span-3">
+            <div class="card-title text-slate-700 text-sm"><i class="fa-solid fa-calendar-check mt-1 text-purple-500"></i> วันเวลาที่สามารถเรียนได้</div>
             <div class="relative h-56 w-full"><canvas id="timeChart"></canvas></div>
         </div>
 
@@ -234,7 +240,7 @@
             let lit = { 'รู้หนังสือ':0, 'ลืมหนังสือ':0, 'ไม่รู้หนังสือ':0 };
             let eduWant = 0, onlineCnt = 0, offlineCnt = 0;
             let eduDetails = {}, career = {}, life = {}, society = {}, subj23 = {};
-            let purpose = {}, formatLoc = {}, time = {};
+            let purpose = {}, format = {}, loc = {}, time = {};
             
             let tableHTML = ''; // สำหรับสร้างตารางข้อมูลดิบ
 
@@ -288,9 +294,9 @@
                 addCounts(row[14], society); // 2.2.3
                 addCounts(row[17], purpose); // 3
                 
-                // รูปแบบและสถานที่ (คอลัมน์ 18, 19)
-                let fStr = (row[18]||'').trim(); if(fStr && fStr!=='-') formatLoc['รูปแบบ: ' + fStr] = (formatLoc['รูปแบบ: ' + fStr] || 0) + 1;
-                let locStr = (row[19]||'').trim(); if(locStr && locStr!=='-') formatLoc['สถานที่: ' + locStr] = (formatLoc['สถานที่: ' + locStr] || 0) + 1;
+                // รูปแบบและสถานที่ (คอลัมน์ 18, 19) แยกออกจากกัน
+                addCounts(row[18], format); // 4
+                addCounts(row[19], loc);    // 5
 
                 addCounts(row[20], time); // เวลา
 
@@ -345,8 +351,11 @@
             let pSorted = Object.entries(purpose).sort((a,b)=>b[1]-a[1]);
             createDoughnut('purposeChart', pSorted.map(x=>x[0]), pSorted.map(x=>x[1]));
 
-            let flSorted = Object.entries(formatLoc).sort((a,b)=>b[1]-a[1]);
-            createBarChart('formatLocChart', flSorted.map(x=>x[0]), flSorted.map(x=>x[1]), '#0ea5e9', true);
+            let fSorted = Object.entries(format).sort((a,b)=>b[1]-a[1]);
+            createBarChart('formatChart', fSorted.map(x=>x[0]), fSorted.map(x=>x[1]), '#0ea5e9', true);
+
+            let lSorted = Object.entries(loc).sort((a,b)=>b[1]-a[1]);
+            createBarChart('locChart', lSorted.map(x=>x[0]), lSorted.map(x=>x[1]), '#f43f5e', true);
 
             let tSorted = Object.entries(time).sort((a,b)=>b[1]-a[1]);
             createBarChart('timeChart', tSorted.map(x=>x[0]), tSorted.map(x=>x[1]), '#8b5cf6', false);
@@ -401,7 +410,7 @@
                 options: {
                     indexAxis: isHorizontal ? 'y' : 'x',
                     responsive: true, maintainAspectRatio: false,
-                    scales: { x: { display: !isHorizontal, grid:{display:false} }, y: { display: isHorizontal, grid:{display:false} } },
+                    scales: { x: { display: !isHorizontal, grid:{display:false} }, y: { display: isHorizontal, grid:{display:false}, ticks: { font: { size: 11 } } } },
                     plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: isHorizontal ? 'start' : 'bottom', color: isHorizontal ? '#fff' : '#fff', offset: isHorizontal ? 4 : 0 } }
                 }
             });
